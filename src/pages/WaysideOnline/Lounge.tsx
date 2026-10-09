@@ -1,4 +1,5 @@
 import ContentControls, { useBlocks } from "../../station/things/ContentControls";
+import { showComplianceNotice } from "../../fetchWithAuth";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -320,6 +321,7 @@ export default function Lounge({ signedIn, goSignIn }: { signedIn: boolean; goSi
           break;
         case "error":
           setNotice(message.message);
+          showComplianceNotice(message.code);
           break;
       }
     };

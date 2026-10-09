@@ -1,6 +1,6 @@
 import pool from '../db/mockDB.js';
 import { isAdminUser } from './inbox.js';
-import { publicFeatures, minimumAge } from '../utils/features.js';
+import { publicFeatures, minimumAge, termsVersion } from '../utils/features.js';
 import { chatTarget, contentRemoved, forgetChat } from '../utils/contentSafety.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -19,6 +19,37 @@ async function targetFor(db, type, id) {
 }
 export default async function complianceRoutes(fastify, { db = pool, env = process.env, geoReady = () => false } = {}) {
     fastify.get('/config/features', async (_request, reply) => reply.header('Cache-Control', 'public, max-age=60').send(publicFeatures(env, geoReady())));
+    fastify.get('/user/terms-acceptance', async (request, reply) => {
+        reply.header('Cache-Control', 'no-store');
+        const version = termsVersion(env);
+        if (!version) return { required: false, currentVersion: null, acceptedAt: null, versionAccepted: null, ageRequired: false };
+        const { rows } = await db.query('SELECT terms_accepted_at, terms_version_accepted, age_confirmed_at FROM users WHERE id = $1 AND deleted_at IS NULL', [request.user.sub]);
+        const user = rows[0];
+        if (!user) return reply.code(401).send({ error: 'Sign in again.' });
+        return { required: !user.terms_accepted_at || user.terms_version_accepted !== version, currentVersion: version,
+            acceptedAt: user.terms_accepted_at, versionAccepted: user.terms_version_accepted,
+            ageRequired: Boolean(minimumAge(env) && !user.age_confirmed_at) };
+    });
+    fastify.post('/user/terms-acceptance', async (request, reply) => {
+        reply.header('Cache-Control', 'no-store');
+        const version = termsVersion(env);
+        if (!version) return { required: false, currentVersion: null };
+        if (request.body?.accepted !== true) return reply.code(400).send({ error: 'Choose I agree to accept the house rules.' });
+        if (request.body.version !== version) return reply.code(409).send({ code: 'terms_version_changed', error: 'The house rules have changed. Please read the current papers and agree again.' });
+        const age = minimumAge(env);
+        if (age && request.body.ageConfirmed !== true) {
+            const { rows } = await db.query('SELECT age_confirmed_at FROM users WHERE id = $1 AND deleted_at IS NULL', [request.user.sub]);
+            if (!rows[0]?.age_confirmed_at) return reply.code(400).send({ error: `Confirm that you are ${age} or older.` });
+        }
+        const { rows } = await db.query(`UPDATE users SET
+            terms_accepted_at = CASE WHEN terms_version_accepted = $2 THEN COALESCE(terms_accepted_at, now()) ELSE now() END,
+            terms_version_accepted = $2,
+            age_confirmed_at = CASE WHEN $3::boolean THEN COALESCE(age_confirmed_at, now()) ELSE age_confirmed_at END
+            WHERE id = $1 AND deleted_at IS NULL RETURNING terms_accepted_at, terms_version_accepted`,
+        [request.user.sub, version, Boolean(age && request.body.ageConfirmed === true)]);
+        if (!rows.length) return reply.code(401).send({ error: 'Sign in again.' });
+        return { required: false, currentVersion: version, acceptedAt: rows[0].terms_accepted_at, versionAccepted: rows[0].terms_version_accepted, ageRequired: false };
+    });
     fastify.get('/user/age-confirmation', async (request) => {
         if (!minimumAge(env)) return { required: false, confirmedAt: null };
         const result = await db.query('SELECT age_confirmed_at FROM users WHERE id = $1', [request.user.sub]);

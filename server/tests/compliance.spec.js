@@ -108,7 +108,7 @@ describe('features and age gate', () => {
         const app = await build();
         const response = await app.inject('/config/features?fresh=1');
         expect(response.statusCode).toBe(200); expect(response.headers['cache-control']).toBe('public, max-age=60');
-        expect(response.json()).toEqual({ geoBlock: false, geoAllowedCountries: [], ageGate: false, ageGateMinAge: null, reports: false, legalContactEmail: null, legalOwnerName: null, accountDeletion: false, emailChange: true });
+        expect(response.json()).toEqual({ geoBlock: false, geoAllowedCountries: [], ageGate: false, ageGateMinAge: null, termsAcceptance: false, termsVersion: null, reports: false, legalContactEmail: null, legalOwnerName: null, accountDeletion: false, emailChange: true });
         const active = publicFeatures({ AGE_GATE_MIN_AGE: '13', GEO_ALLOWED_COUNTRIES: 'US,ca', REPORTS_ENABLED: 'true', SUPABASE_SERVICE_KEY: 'secret', GEO_BYPASS_TOKEN: 'bypass', LEGAL_CONTACT_EMAIL: 'owner@example.com', LEGAL_OWNER_NAME: 'Owner', EMAIL_CHANGE_ENABLED: 'false' }, true);
         expect(active).toMatchObject({ geoBlock: true, ageGate: true, reports: true, accountDeletion: true, emailChange: false });
         expect(JSON.stringify(active)).not.toMatch(/secret|bypass/);

@@ -18,6 +18,7 @@ tokens) are never returned. No `VITE_` build-time switches are needed.
 | Geo database cache | `GEO_DATABASE_CACHE_DIR` (optional) | Railway → API service → Variables; optionally mount a volume at that directory | Defaults to `server/.cache/geolite2` when starting in `server/`. Checks daily and refreshes once the database is a week old. A mounted volume preserves the cache across deployments. No database or license is committed. |
 | Geo owner bypass | `GEO_BYPASS_TOKEN` (long random secret) | **Both** Vercel and Railway → Environment Variables / Variables | Visiting `https://waysidestation.com/?geo_bypass=<URL-encoded-token>` sets the secure, HttpOnly, same-site `ws_geo_bypass` cookie for seven days and removes the token from the URL before redirecting to the station. On API requests use `X-WS-Geo-Bypass: <token>`. The website cookie is not sent to the Railway domain; the API header is a separate bypass, useful for owner tooling. Rotating/unsetting the secret revokes old bypasses. |
 | Age gate | `AGE_GATE_MIN_AGE=13` (integer 13–120) | Railway → API service → Variables | Required Kiosk signup checkbox and Terms minimum-age line. Signed-in riders without `users.age_confirmed_at` get a one-time paper prompt. Explicit confirmation records server time; immediate-session signups record it after account creation. Email-confirmed signups confirm after their first sign-in. Until confirmed, server blocks posts/reactions, lounge entry/chat, Monster Bash chat, photo uploads, listings and private messages. Export/delete/read access remains available. Unset/empty/invalid values turn the gate off. No birthday is collected. |
+| Terms acceptance | **Both** `TERMS_VERSION=2026-10-01` (opaque version string) **and** `LEGAL_CONTACT_EMAIL` (nonempty, finalized legal contact) | Railway → API service → Variables; staging only until reviewed | `termsAcceptance` and `termsVersion` in `/config/features`. Existing signed-in riders see “We've added house rules,” with both papers, I agree, and Read later (this tab/session only). Posting/reactions, chat, uploads, listings and private messages require the current version; browsing, playing, export and deletion stay available. With either variable unset/blank there is no notice, acceptance query or added write restriction. Changing the version re-prompts even previously accepted riders. If age confirmation is also needed, it is folded into the same notice and saved with acceptance. New Kiosk signups explicitly agree there; their signup intent survives email confirmation, and an authenticated POST saves it before displaying any notice. Signup intent is never reused after a version change or an earlier saved acceptance. |
 | Report and block | `REPORTS_ENABLED=true` (exact value; default false) | Railway → API service → Variables | Report slips on Wayside Online posts, lounge/Monster Bash chat, PictoBox photos and counter marketplace listings; block controls and Settings unblock list; report queue in the existing Scareathon admin panel. Backend routes return 404 while off. Blocks hide posts, chat and photos, and stop new/existing private messages in either direction. Admin removal can restrict further sharing; restrictions enforce only while this switch is on. |
 | Moderation admins | Existing `ADMIN_USER_IDS` / `ADMIN_EMAILS` allowlists | Railway → API service → Variables | Existing Scareathon admins can view/dismiss reports or remove content, optionally restricting the author. Agent keys never acquire admin rights. These are existing admin settings, not a new grant. |
 | Legal contact / takedowns | `LEGAL_CONTACT_EMAIL` | Railway → API service → Variables | Contact links and DMCA/takedown section in both station papers; removes DRAFT banner. While unset, contact lines and takedown section are absent and DRAFT remains. Owner must review the papers before finalizing. |
@@ -38,6 +39,32 @@ server-authored report targets (across neither restarts nor API replicas). Repor
 save a review snapshot so moderators can act after the chat disappears. Report
 submission should reach the same API instance as that chat; use a single API
 replica for the existing in-memory lounge/Monster Bash rooms.
+
+`20261015_terms_acceptance.sql` runs immediately after the compliance migration at
+startup. It adds `users.terms_accepted_at` and `users.terms_version_accepted` and
+extends the Supabase profile-write guard. `GET /user/terms-acceptance` is private,
+uncached, and returns the current version, whether acceptance is required, the
+saved timestamp/version and whether age confirmation is needed. The authenticated
+`POST /user/terms-acceptance` accepts `{ accepted: true, version, ageConfirmed }`,
+checks the current version, uses server time, and shares the account routes'
+120/minute IP rate limit. A stale version returns 409. The acceptance record is
+included in account exports and cleared on account deletion.
+
+For review, run `VITE_PREVIEW=1 npm run dev` and open `/?preview=terms` or
+`/?preview=terms-age` (also available on `/station`). These render the exact notice
+with mock state and no auth/API requests. The hook is available only in Vite dev
+or builds made with `VITE_PREVIEW=1`; regular production builds ignore it. It
+does not activate the Railway switch. Screenshots belong on the separate review
+branch, never in the feature branch or `public/`.
+
+Regression checks: `npx tsc -b`, `npm run lint`, `npm test -- --runInBand`.
+With Vite running, `node scripts/check-station-terms-browser.mjs` checks the live
+notice/Kiosk components against mock API responses and captures the four previews
+to `work/review-shots/` (gitignored). It uses `playwright`, or the module specified
+by `TERMS_PLAYWRIGHT_MODULE`; `TERMS_BASE_URL` and `TERMS_SHOTS_DIR` override the
+server URL and scratch capture folder. For mocked signup checks, Vite still needs
+test-only `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` placeholders; the preview
+entry itself needs neither and never imports auth/API modules.
 
 Account exports include the rider's reports and blocks. Account deletion clears
 blocks, reports they filed, and authored-content snapshots attached to other

@@ -1,18 +1,18 @@
 import { useState } from "react";
 import Sheet from "../Sheet.tsx";
 import { serif, typewriter } from "../style/theme.ts";
-import { useFeatures } from "../features";
+import { useFeatures, type Features } from "../features";
 
-export default function LegalPapers({ signup = false, standalone = false }: { signup?: boolean; standalone?: boolean }) {
-  const features = useFeatures();
+export default function LegalPapers({ signup = false, standalone = false, mockFeatures }: { signup?: boolean; standalone?: boolean; mockFeatures?: Features }) {
+  const features = useFeatures(mockFeatures);
   const [paper, setPaper] = useState<"Privacy" | "Terms" | null>(() => {
     if (!standalone) return null;
     return window.location.pathname === '/terms' || new URLSearchParams(window.location.search).get('legal') === 'terms' ? 'Terms' : 'Privacy';
   });
-  const link = "underline underline-offset-4 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4";
+  const link = "inline-flex min-h-11 min-w-11 items-center justify-center underline underline-offset-4 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4";
   return <>
     {!standalone && <p className="mt-3 text-sm">
-      {signup ? "By signing up you agree to the " : "Papers at the ticket counter: "}
+      {signup ? features.termsAcceptance ? "Read the " : "By signing up you agree to the " : "Papers at the ticket counter: "}
       <button type="button" className={link} onClick={() => setPaper("Terms")}>Terms</button>
       {signup ? " and " : " · "}
       <button type="button" className={link} onClick={() => setPaper("Privacy")}>Privacy</button>.

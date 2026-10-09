@@ -137,7 +137,7 @@ export default async function waysideLoungeRoutes(fastify, { lounge: injectedLou
                         let denied = false;
                         await gate({ method: 'POST', url: '/wayside-online/lounge/ticket', user: { sub: lounge.userFor?.(socket) } }, {
                             code() { return this; },
-                            send(error) { denied = true; socket.send(JSON.stringify({ type: 'error', message: error.error })); },
+                            send(error) { denied = true; socket.send(JSON.stringify({ type: 'error', code: error.code, message: error.error })); },
                         });
                         if (!denied) lounge.say(socket, message);
                         break;

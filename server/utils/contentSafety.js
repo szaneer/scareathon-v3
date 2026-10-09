@@ -1,4 +1,4 @@
-import { minimumAge } from './features.js';
+import { minimumAge, termsVersion } from './features.js';
 import { EventEmitter } from 'node:events';
 import { onAccountClosed } from './accountSessions.js';
 const changes = new EventEmitter();
@@ -33,9 +33,11 @@ export function createContentGate(db, env = process.env) {
     return async (request, reply) => {
         if (!request.user?.sub || !isContentWrite(request.method, request.url)) return;
         // No extra queries or restrictions until a switch is configured.
-        if (!minimumAge(env) && env.REPORTS_ENABLED !== 'true') return;
-        const result = await db.query('SELECT age_confirmed_at, content_restricted_at FROM users WHERE id = $1 AND deleted_at IS NULL', [request.user.sub]);
+        const version = termsVersion(env);
+        if (!version && !minimumAge(env) && env.REPORTS_ENABLED !== 'true') return;
+        const result = await db.query('SELECT age_confirmed_at, content_restricted_at, terms_accepted_at, terms_version_accepted FROM users WHERE id = $1 AND deleted_at IS NULL', [request.user.sub]);
         const user = result.rows[0];
+        if (version && (!user?.terms_accepted_at || user.terms_version_accepted !== version)) return reply.code(403).send({ code: 'terms_acceptance_required', error: 'Please agree to the house rules on the station notice before sharing. You can still read and play.' });
         if (minimumAge(env) && !user?.age_confirmed_at) return reply.code(403).send({ code: 'age_confirmation_required', error: 'Please confirm your age at the ticket counter before sharing content.' });
         if (env.REPORTS_ENABLED === 'true' && user?.content_restricted_at) return reply.code(403).send({ code: 'content_restricted', error: 'Your account is restricted from sharing content.' });
     };

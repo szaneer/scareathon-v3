@@ -143,6 +143,7 @@ async function main() {
         // Account tombstones must exist before accepting requests (fail closed on migration errors).
         await runStartupSql(pool, await readFile(new URL('./db/migrations/20261013_account_privacy.sql', import.meta.url), 'utf8'));
         await runStartupSql(pool, await readFile(new URL('./db/migrations/20261014_compliance.sql', import.meta.url), 'utf8'));
+        await runStartupSql(pool, await readFile(new URL('./db/migrations/20261015_terms_acceptance.sql', import.meta.url), 'utf8'));
         const stopClosureListener = await listenForAccountClosures(pool, fastify.log);
         fastify.addHook('onClose', stopClosureListener);
         const cleanup = () => retryAccountDeletions(pool, fastify.log).catch(() => fastify.log.error('Account cleanup unavailable'));

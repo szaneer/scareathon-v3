@@ -14,7 +14,7 @@ export default async function accountPrivacyRoutes(fastify, options) {
             const tables = await existingTables(client);
             const own = async (table, columns = '*', field = 'user_id') => tables.has(table)
                 ? (await client.query(`SELECT ${columns} FROM public.${table} WHERE ${field} = $1`, [userId])).rows : [];
-            const profile = (await client.query("SELECT id, username, email, to_jsonb(users)->'created_at' AS created_at FROM users WHERE id = $1", [userId])).rows[0];
+            const profile = (await client.query("SELECT id, username, email, to_jsonb(users)->'created_at' AS created_at, to_jsonb(users)->'terms_accepted_at' AS terms_accepted_at, to_jsonb(users)->'terms_version_accepted' AS terms_version_accepted FROM users WHERE id = $1", [userId])).rows[0];
             // Auth is the source of truth for email (including accounts predating the sync trigger).
             const supabase = auth();
             const { data, error } = await supabase.auth.admin.getUserById(userId);

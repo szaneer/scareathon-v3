@@ -25,11 +25,13 @@ export type SheetContent = {
 
 // above: over a game being played (the scoreboard, from the game's bar).
 // The scoreboard hangs overhead, so it drops down from the top rather than coming up.
-export default function Sheet({ sheet, onClose, above = false }: { sheet: SheetContent | null; onClose: () => void; above?: boolean }) {
+export default function Sheet({ sheet, onClose, above = false, closeLabel = "Put it back" }: { sheet: SheetContent | null; onClose: () => void; above?: boolean; closeLabel?: string }) {
   // The tap that picked something up is followed by its own click, which would land on
   // the backdrop that just appeared under the finger; ignore the backdrop briefly
   const openedAt = useRef(0);
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const [actions, setActions] = useState<HTMLDivElement | null>(null);
   const isOpen = Boolean(sheet);
   useEffect(() => {
@@ -49,7 +51,7 @@ export default function Sheet({ sheet, onClose, above = false }: { sheet: SheetC
       if (dialogs[dialogs.length - 1] !== dialog) return;
       if (event.key === "Escape") {
         event.stopImmediatePropagation();
-        onClose();
+        onCloseRef.current();
       } else if (event.key === "Tab") {
         const list = controls();
         const first = list[0], last = list[list.length - 1];
@@ -66,7 +68,6 @@ export default function Sheet({ sheet, onClose, above = false }: { sheet: SheetC
       if (previous?.isConnected) previous.focus();
     };
     // Changing the contents does not reset focus; each paper has a stable id.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheetId]);
   if (!sheet) return null;
   const tone = sheet.tone ?? "paper";
@@ -112,7 +113,7 @@ export default function Sheet({ sheet, onClose, above = false }: { sheet: SheetC
         <button
           type="button"
           onClick={onClose}
-          aria-label="Put it back"
+          aria-label={closeLabel}
           style={pixel}
           className={`absolute right-2 top-1 z-10 flex h-11 w-11 items-center justify-center text-3xl leading-none ${light ? "text-[#2a1d14]/85 hover:text-[#2a1d14]" : "text-[#f2ead2]/85 hover:text-[#f2ead2]"}`}
         >

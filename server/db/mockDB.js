@@ -70,7 +70,7 @@ pool.on('error', (err) => {
 });
 
 // Function to initialize the database
-async function initializeDB() {
+async function _initializeDB() {
   const client = await pool.connect();
   try {
     // Read the SQL file
@@ -91,7 +91,7 @@ async function initializeDB() {
 }
 
 // Function to mock insert users with null usernames
-async function mockInsertNullUsers(count = 5) {
+async function _mockInsertNullUsers(count = 5) {
   const client = await pool.connect();
   const emails = ["test1@test.com", "test2@test.com", "test3@test.com", "test4@test.com", "test5@test.com"];
   try {
@@ -116,7 +116,7 @@ async function mockInsertNullUsers(count = 5) {
 // mockInsertNullUsers();
 // }
 
-async function addSpookyUsernames() {
+async function _addSpookyUsernames() {
 
   const spookyAdjectives = [
     'Ghostly', 'Haunted', 'Creepy', 'Spooky', 'Eerie', 'Shadowy', 'Cursed', 'Wicked', 

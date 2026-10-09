@@ -101,6 +101,9 @@ export async function erasePrivateAccount(client, userId) {
     if (Object.hasOwn(user.rows[0], 'age_confirmed_at')) {
         await client.query('UPDATE users SET age_confirmed_at = NULL, content_restricted_at = NULL WHERE id = $1', [userId]);
     }
+    if (Object.hasOwn(user.rows[0], 'terms_accepted_at')) {
+        await client.query('UPDATE users SET terms_accepted_at = NULL, terms_version_accepted = NULL WHERE id = $1', [userId]);
+    }
     // Blank any legacy avatar fields as well as the dedicated avatar/outfit tables.
     const legacy = Object.keys(user.rows[0]).filter(key => /^(avatar|outfit)(_|$)/.test(key));
     for (const column of legacy) {

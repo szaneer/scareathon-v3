@@ -35,3 +35,6 @@ daily-puzzles/
 
 # GeoLite2 cache (licensed database, refreshed at runtime)
 server/.cache/
+
+# Terms review captures are committed only from the separate shots branch.
+/work/review-shots/

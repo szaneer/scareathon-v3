@@ -4,6 +4,15 @@ import type { Session } from "@supabase/supabase-js";
 
 let refreshPromise: Promise<Session | null> | null = null;
 
+export function showComplianceNotice(code: string) {
+  const eventName = code === "terms_acceptance_required" ? "ws-terms-required" : code === "age_confirmation_required" ? "ws-age-required" : null;
+  if (!eventName) return;
+  window.dispatchEvent(new Event(eventName));
+  if (window.parent !== window) {
+    try { window.parent.dispatchEvent(new Event(eventName)); } catch { /* standalone room */ }
+  }
+}
+
 function buildApiUrl(input: RequestInfo) {
   const baseUrl = import.meta.env.VITE_BASE_URL || "";
   return typeof input === "string"
@@ -31,7 +40,7 @@ async function fetchWithAccessToken(
   }
   if (response.status === 403) {
     const body = await response.clone().json().catch(() => ({}));
-    if (body.code === "age_confirmation_required") window.dispatchEvent(new Event("ws-age-required"));
+    showComplianceNotice(body.code);
   }
   return response;
 }

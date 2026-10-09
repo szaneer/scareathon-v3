@@ -10,7 +10,6 @@ import {
 import { bannersFor } from './banners.js';
 import {
     RegExpMatcher,
-    TextCensor,
     englishDataset,
     englishRecommendedTransformers,
 } from 'obscenity';

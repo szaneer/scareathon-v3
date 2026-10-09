@@ -1,7 +1,7 @@
 import { fetchWithAuth } from "../../fetchWithAuth";
 import { useFeatures } from "../features";
 import LegalPapers from "./LegalPapers.tsx";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { supabase } from "../../supabaseClient";
 import { isRetryableAuthError } from "../../authErrors";
@@ -50,6 +50,8 @@ export const linkFailed = (() => {
 function SignInCard() {
   const features = useFeatures();
   const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const [termsAgreed, setTermsAgreed] = useState(false);
+  useEffect(() => { setTermsAgreed(false); }, [features.termsVersion]);
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -88,6 +90,7 @@ function SignInCard() {
     setError(null);
     try {
       if (!isLogin && features.ageGate && !ageConfirmed) throw new Error(`Confirm that you are ${features.ageGateMinAge} or older.`);
+      if (!isLogin && features.termsAcceptance && !termsAgreed) throw new Error('Please agree to the Terms and Privacy paper.');
       const credentials = { email: email.trim(), password };
       if (isLogin) {
         const { error: signInError } = await supabase.auth.signInWithPassword(credentials);
@@ -98,7 +101,7 @@ function SignInCard() {
       } else {
         const { data, error: signUpError } = await supabase.auth.signUp({
           ...credentials,
-          options: { emailRedirectTo: confirmRedirect() },
+          options: { emailRedirectTo: confirmRedirect(), ...(features.termsAcceptance ? { data: { station_terms_signup_agreed: termsAgreed, station_terms_signup_version: features.termsVersion, station_signup_age_confirmed: ageConfirmed } } : {}) },
         });
         if (signUpError) throw signUpError;
         if (data.session && features.ageGate && ageConfirmed) {
@@ -163,7 +166,8 @@ function SignInCard() {
           disabled={busy}
           onChange={(e) => { setPassword(e.target.value); setError(null); }}
         />
-        {!isLogin && features.ageGate && <label className="flex items-center gap-2 text-sm py-2"><input type="checkbox" required checked={ageConfirmed} disabled={busy} onChange={event => setAgeConfirmed(event.target.checked)} />I&apos;m {features.ageGateMinAge} or older</label>}
+        {!isLogin && features.termsAcceptance && <label className="flex min-h-11 items-center gap-3 text-sm py-2"><input className="h-5 w-5 accent-[#1d2a3a]" type="checkbox" required checked={termsAgreed} disabled={busy} onChange={event => setTermsAgreed(event.target.checked)} />I agree to the Terms and Privacy paper.</label>}
+        {!isLogin && features.ageGate && <label className="flex min-h-11 items-center gap-3 text-sm py-2"><input type="checkbox" required checked={ageConfirmed} disabled={busy} onChange={event => setAgeConfirmed(event.target.checked)} />I&apos;m {features.ageGateMinAge} or older</label>}
         {error && <p role="alert" className="text-[13px] font-semibold text-red-800">{error}</p>}
         {resent && <p className="text-[13px] font-semibold">A fresh confirmation link is on its way to {email.trim()}.</p>}
         {canResend && (

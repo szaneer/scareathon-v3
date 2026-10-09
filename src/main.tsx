@@ -1,11 +1,16 @@
 import "./index.css";
-import { StrictMode } from "react";
+import { StrictMode, Suspense, lazy } from "react";
 import { createRoot } from "react-dom/client";
 import { NavigatorProvider } from "./components/navigator/context.tsx";
-import App from "./App.tsx";
+import { termsPreviewMode } from "./station/termsPreview";
+import TermsPreview from "./station/things/TermsPreview";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const queryClient = new QueryClient();
+const preview = termsPreviewMode();
+// This root entry has no exports; lazy loading keeps previews free of auth/API modules.
+// eslint-disable-next-line react-refresh/only-export-components
+const App = lazy(() => import("./App.tsx"));
 
 // After a deploy, a tab opened earlier asks for page files that no longer
 // exist, and Vite fires this. Reload once to pick up the new version; if that
@@ -23,7 +28,7 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <NavigatorProvider>
-        <App />
+        {preview ? <TermsPreview combined={preview === 'terms-age'} /> : <Suspense fallback={null}><App /></Suspense>}
       </NavigatorProvider>
     </QueryClientProvider>
   </StrictMode>
